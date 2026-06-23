@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+<title>مصحف معلّم الترتيل المفسّر</title>
+<meta name="description" content="مصحف معلّم الترتيل المفسّر — تصفّح تفاعلي بالصفحة والسورة والجزء">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --maroon-deep:#3D1019;
+    --maroon:#4A1620;
+    --maroon-light:#6B2430;
+    --gold:#C9A24B;
+    --gold-bright:#E2C171;
+    --emerald:#1F5C45;
+    --parchment:#F7F2E4;
+    --parchment-dim:#EFE7D2;
+    --ink:#2A1A12;
+    --ink-soft:#6b5a4a;
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--maroon-deep);
+    color:var(--parchment);
+    font-family:'Cairo',sans-serif;
+    height:100vh;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+  }
+
+  /* ===== Top bar ===== */
+  .topbar{
+    background:linear-gradient(180deg,var(--maroon) 0%,var(--maroon-deep) 100%);
+    border-bottom:1px solid var(--gold);
+    box-shadow:0 2px 14px rgba(0,0,0,.35);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 14px;
+    position:relative;
+    z-index:30;
+    flex-wrap:nowrap;
+  }
+  .pattern-strip{
+    position:absolute;
+    bottom:-1px;left:0;right:0;height:3px;
+    background:repeating-linear-gradient(135deg,var(--gold) 0 6px, transparent 6px 12px);
+    opacity:.55;
+  }
+  .icon-btn{
+    background:rgba(201,162,75,.12);
+    border:1px solid rgba(201,162,75,.5);
+    color:var(--gold-bright);
+    width:40px;height:40px;
+    border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    flex:0 0 auto;
+    transition:background .15s, transform .1s;
+  }
+  .icon-btn:hover{background:rgba(201,162,75,.25);}
+  .icon-btn:active{transform:scale(.93);}
+  .icon-btn svg{width:20px;height:20px;}
+
+  .title-block{
+    flex:1 1 auto;
+    min-width:0;
+    text-align:center;
+    display:flex;
+    flex-direction:column;
+    line-height:1.15;
+  }
+  .title-block .surah-now{
+    font-family:'Amiri',serif;
+    font-weight:700;
+    font-size:17px;
+    color:var(--gold-bright);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .title-block .meta-now{
+    font-size:11.5px;
+    color:rgba(247,242,228,.65);
+    white-space:nowrap;
+  }
+
+  .jump-form{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex:0 0 auto;
+  }
+  .jump-form input{
+    width:54px;
+    text-align:center;
+    background:rgba(0,0,0,.25);
+    border:1px solid rgba(201,162,75,.5);
+    color:var(--parchment);
+    border-radius:8px;
+    padding:8px 4px;
+    font-family:'Cairo',sans-serif;
+    font-size:14px;
+  }
+  .jump-form input:focus{outline:none;border-color:var(--gold-bright);}
+  .jump-form button{
+    background:var(--gold);
+    border:none;
+    color:var(--maroon-deep);
+    font-weight:700;
+    font-size:13px;
+    border-radius:8px;
+    padding:8px 12px;
+    cursor:pointer;
+  }
+  .jump-form button:active{transform:scale(.95);}
+
+  /* ===== Viewer ===== */
+  .viewer{
+    flex:1 1 auto;
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    background:
+      radial-gradient(ellipse at 50% 18%, rgba(201,162,75,.07), transparent 60%),
+      var(--maroon-deep);
+    touch-action:pan-y;
+  }
+  .page-frame{
+    position:relative;
+    height:96%;
+    max-width:94%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:6px;
+  }
+  .page-frame img{
+    height:100%;
+    max-width:100%;
+    object-fit:contain;
+    border-radius:4px;
+    box-shadow:var(--shadow);
+    background:var(--parchment);
+    opacity:0;
+    transition:opacity .22s ease;
+    user-select:none;
+    -webkit-user-drag:none;
+  }
+  .page-frame img.loaded{opacity:1;}
+
+  .corner{
+    position:absolute;
+    width:30px;height:30px;
+    pointer-events:none;
+    opacity:.85;
+  }
+  .corner svg{width:100%;height:100%;display:block;}
+  .corner.tl{top:-6px;right:-6px;}
+  .corner.tr{top:-6px;left:-6px;transform:scaleX(-1);}
+  .corner.bl{bottom:-6px;right:-6px;transform:scaleY(-1);}
+  .corner.br{bottom:-6px;left:-6px;transform:scale(-1,-1);}
+
+  .tap-zone{
+    position:absolute;top:0;bottom:0;width:28%;
+    z-index:5;
+    cursor:pointer;
+  }
+  .tap-zone.right{right:0;}
+  .tap-zone.left{left:0;}
+
+  .nav-arrow{
+    position:absolute;
+    top:50%;transform:translateY(-50%);
+    width:38px;height:38px;
+    border-radius:50%;
+    background:rgba(61,16,25,.55);
+    border:1px solid rgba(201,162,75,.45);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--gold-bright);
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .2s;
+    z-index:6;
+  }
+  .viewer:hover .nav-arrow{opacity:1;}
+  .nav-arrow.prev{right:10px;}
+  .nav-arrow.next{left:10px;}
+  .nav-arrow svg{width:18px;height:18px;}
+  .nav-arrow.disabled{opacity:.15 !important;pointer-events:none;}
+
+  .spinner{
+    position:absolute;
+    width:30px;height:30px;
+    border:3px solid rgba(201,162,75,.25);
+    border-top-color:var(--gold-bright);
+    border-radius:50%;
+    animation:spin 0.8s linear infinite;
+    display:none;
+    z-index:4;
+  }
+  .spinner.show{display:block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ===== Bottom bar ===== */
+  .bottombar{
+    background:linear-gradient(0deg,var(--maroon) 0%,var(--maroon-deep) 100%);
+    border-top:1px solid var(--gold);
+    padding:8px 16px 10px;
+    z-index:30;
+  }
+  .slider-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .slider-row input[type=range]{
+    flex:1;
+    -webkit-appearance:none;
+    height:5px;
+    border-radius:4px;
+    background:rgba(201,162,75,.3);
+    outline:none;
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:18px;height:18px;
+    border-radius:50%;
+    background:var(--gold-bright);
+    border:2px solid var(--maroon-deep);
+    cursor:pointer;
+    margin-top:-1px;
+  }
+  .slider-row input[type=range]::-moz-range-thumb{
+    width:18px;height:18px;
+    border-radius:50%;
+    background:var(--gold-bright);
+    border:2px solid var(--maroon-deep);
+    cursor:pointer;
+  }
+  .link-btn{
+    background:none;
+    border:none;
+    color:rgba(247,242,228,.7);
+    font-family:'Cairo',sans-serif;
+    font-size:12px;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    cursor:pointer;
+    flex:0 0 auto;
+    padding:6px;
+  }
+  .link-btn svg{width:14px;height:14px;}
+  .link-btn.copied{color:var(--gold-bright);}
+
+  /* ===== Drawer ===== */
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;
+    transition:opacity .2s;
+    z-index:40;
+  }
+  .overlay.open{opacity:1;pointer-events:auto;}
+
+  .drawer{
+    position:fixed;
+    top:0;bottom:0;right:0;
+    width:min(360px,86vw);
+    background:var(--parchment);
+    color:var(--ink);
+    transform:translateX(100%);
+    transition:transform .25s ease;
+    z-index:41;
+    display:flex;
+    flex-direction:column;
+    box-shadow:-10px 0 40px rgba(0,0,0,.4);
+  }
+  .drawer.open{transform:translateX(0);}
+
+  .drawer-head{
+    background:var(--maroon);
+    color:var(--parchment);
+    padding:16px 16px 12px;
+    border-bottom:3px solid var(--gold);
+  }
+  .drawer-head h2{
+    margin:0 0 10px;
+    font-family:'Amiri',serif;
+    font-size:19px;
+    color:var(--gold-bright);
+  }
+  .tabs{
+    display:flex;
+    gap:6px;
+  }
+  .tab-btn{
+    flex:1;
+    background:rgba(201,162,75,.1);
+    border:1px solid rgba(201,162,75,.4);
+    color:var(--parchment);
+    padding:8px;
+    border-radius:8px;
+    font-family:'Cairo',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .tab-btn.active{
+    background:var(--gold);
+    color:var(--maroon-deep);
+    border-color:var(--gold);
+  }
+  .search-box{
+    padding:10px 14px;
+    border-bottom:1px solid #e3d8b8;
+  }
+  .search-box input{
+    width:100%;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid #d8caa0;
+    background:#fff;
+    font-family:'Cairo',sans-serif;
+    font-size:14px;
+  }
+  .search-box input:focus{outline:none;border-color:var(--gold);}
+
+  .list-wrap{flex:1;overflow-y:auto;}
+  .surah-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 16px;
+    cursor:pointer;
+    border-bottom:1px solid #ebe2c8;
+  }
+  .surah-row:hover{background:var(--parchment-dim);}
+  .surah-row .num{
+    width:30px;height:30px;
+    border:1.5px solid var(--gold);
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;
+    color:var(--emerald);
+    flex:0 0 auto;
+    font-weight:600;
+  }
+  .surah-row .name{
+    font-family:'Amiri',serif;
+    font-size:17px;
+    flex:1;
+  }
+  .surah-row .pg{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    flex:0 0 auto;
+  }
+
+  .juz-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:8px;
+    padding:14px;
+    overflow-y:auto;
+  }
+  .juz-card{
+    background:#fff;
+    border:1px solid #e3d8b8;
+    border-radius:10px;
+    padding:12px 10px;
+    text-align:center;
+    cursor:pointer;
+  }
+  .juz-card:hover{border-color:var(--gold);background:var(--parchment-dim);}
+  .juz-card .jn{
+    font-family:'Amiri',serif;
+    font-size:15px;
+    color:var(--maroon);
+    font-weight:700;
+  }
+  .juz-card .jp{
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:3px;
+  }
+
+  .hidden{display:none !important;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+
+  @media (max-width:420px){
+    .title-block .surah-now{font-size:15px;}
+    .jump-form input{width:46px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="topbar">
+    <button class="icon-btn" id="menuBtn" aria-label="فتح فهرس السور والأجزاء">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+
+    <div class="title-block">
+      <span class="surah-now" id="surahNow">—</span>
+      <span class="meta-now" id="metaNow">—</span>
+    </div>
+
+    <form class="jump-form" id="jumpForm">
+      <input type="number" id="jumpInput" min="1" max="604" inputmode="numeric" placeholder="صفحة">
+      <button type="submit">اذهب</button>
+    </form>
+    <div class="pattern-strip"></div>
+  </div>
+
+  <div class="viewer" id="viewer">
+    <div class="tap-zone right" id="tapPrev"></div>
+    <div class="tap-zone left" id="tapNext"></div>
+
+    <div class="nav-arrow prev" id="arrowPrev" aria-label="الصفحة السابقة">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+    <div class="nav-arrow next" id="arrowNext" aria-label="الصفحة التالية">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <div class="spinner" id="spinner"></div>
+
+    <div class="page-frame" id="pageFrame">
+      <img id="pageImg" alt="صفحة المصحف">
+      <div class="corner tl"><svg viewBox="0 0 40 40"><path d="M2 38 L2 14 Q2 2 14 2 L38 2" fill="none" stroke="#C9A24B" stroke-width="1.6"/><path d="M2 22 L2 14 Q2 8 8 8 L16 8" fill="none" stroke="#C9A24B" stroke-width="1"/><circle cx="2" cy="2" r="2.4" fill="#C9A24B"/></svg></div>
+      <div class="corner tr"><svg viewBox="0 0 40 40"><path d="M2 38 L2 14 Q2 2 14 2 L38 2" fill="none" stroke="#C9A24B" stroke-width="1.6"/><path d="M2 22 L2 14 Q2 8 8 8 L16 8" fill="none" stroke="#C9A24B" stroke-width="1"/><circle cx="2" cy="2" r="2.4" fill="#C9A24B"/></svg></div>
+      <div class="corner bl"><svg viewBox="0 0 40 40"><path d="M2 38 L2 14 Q2 2 14 2 L38 2" fill="none" stroke="#C9A24B" stroke-width="1.6"/><path d="M2 22 L2 14 Q2 8 8 8 L16 8" fill="none" stroke="#C9A24B" stroke-width="1"/><circle cx="2" cy="2" r="2.4" fill="#C9A24B"/></svg></div>
+      <div class="corner br"><svg viewBox="0 0 40 40"><path d="M2 38 L2 14 Q2 2 14 2 L38 2" fill="none" stroke="#C9A24B" stroke-width="1.6"/><path d="M2 22 L2 14 Q2 8 8 8 L16 8" fill="none" stroke="#C9A24B" stroke-width="1"/><circle cx="2" cy="2" r="2.4" fill="#C9A24B"/></svg></div>
+    </div>
+  </div>
+
+  <div class="bottombar">
+    <div class="slider-row">
+      <button class="link-btn" id="copyLinkBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.07 0l1.93-1.93a5 5 0 10-7.07-7.07L10.5 5.43"/><path d="M14 11a5 5 0 00-7.07 0L5 12.93a5 5 0 107.07 7.07L13.5 18.57"/></svg>
+        <span>نسخ رابط الصفحة</span>
+      </button>
+      <input type="range" id="pageSlider" min="0" max="604" value="1">
+      <span id="sliderLabel" style="font-size:12px;min-width:30px;text-align:left;">١</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h2>الفهرس</h2>
+    <div class="tabs">
+      <button class="tab-btn active" id="tabSurah">السور</button>
+      <button class="tab-btn" id="tabJuz">الأجزاء</button>
+    </div>
+  </div>
+  <div class="search-box" id="searchBox">
+    <input type="text" id="searchInput" placeholder="ابحث باسم السورة...">
+  </div>
+  <div class="list-wrap" id="surahList"></div>
+  <div class="juz-grid hidden" id="juzGrid"></div>
+</div>
+
+<script src="data.js"></script>
+<script>
+const AR_DIGITS = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+function toAr(n){ return String(n).split('').map(c => /[0-9]/.test(c) ? AR_DIGITS[+c] : c).join(''); }
+function stripTashkeel(s){ return s.replace(/[\u064B-\u0652\u0670\u0640]/g,''); }
+function pad3(n){ return String(n).padStart(3,'0'); }
+function imgSrc(n){ return n===0 ? 'cover.jpg' : `${pad3(n)}.jpg`; }
+
+const sortedSurahs = [...SURAHS].sort((a,b)=>a.page-b.page);
+
+function surahForPage(p){
+  let result = sortedSurahs[0];
+  for(const s of sortedSurahs){ if(s.page<=p) result=s; else break; }
+  return result;
+}
+function juzForPage(p){
+  let result = JUZ[0];
+  for(const j of JUZ){ if(j.page<=p) result=j; else break; }
+  return result;
+}
+
+let current = 1;
+const pageImg = document.getElementById('pageImg');
+const surahNow = document.getElementById('surahNow');
+const metaNow = document.getElementById('metaNow');
+const spinner = document.getElementById('spinner');
+const slider = document.getElementById('pageSlider');
+const sliderLabel = document.getElementById('sliderLabel');
+const arrowPrev = document.getElementById('arrowPrev');
+const arrowNext = document.getElementById('arrowNext');
+
+function preload(n){
+  if(n<1||n>TOTAL_PAGES) return;
+  const im = new Image();
+  im.src = imgSrc(n);
+}
+
+function setHash(n){
+  history.replaceState(null,'', '#page=' + n);
+}
+
+function render(n, push=true){
+  n = Math.max(0, Math.min(TOTAL_PAGES, n));
+  current = n;
+  pageImg.classList.remove('loaded');
+  spinner.classList.add('show');
+  const src = imgSrc(n);
+  const tmp = new Image();
+  tmp.onload = () => {
+    pageImg.src = src;
+    pageImg.classList.add('loaded');
+    spinner.classList.remove('show');
+  };
+  tmp.onerror = () => { spinner.classList.remove('show'); };
+  tmp.src = src;
+
+  if(n===0){
+    surahNow.textContent = 'الغلاف';
+    metaNow.textContent = 'مصحف معلّم الترتيل المفسّر';
+  } else {
+    const s = surahForPage(n);
+    const j = juzForPage(n);
+    surahNow.textContent = 'سورة ' + s.name;
+    metaNow.textContent = j.name + ' · صفحة ' + toAr(n) + ' من ' + toAr(TOTAL_PAGES);
+  }
+  slider.value = n;
+  sliderLabel.textContent = toAr(n);
+  arrowPrev.classList.toggle('disabled', n<=0);
+  arrowNext.classList.toggle('disabled', n>=TOTAL_PAGES);
+  if(push) setHash(n);
+  preload(n+1);
+  preload(n-1);
+}
+
+function goto(n){ render(n); }
+function next(){ if(current<TOTAL_PAGES) render(current+1); }
+function prev(){ if(current>0) render(current-1); }
+
+// init from hash
+function initFromHash(){
+  const m = location.hash.match(/page=(\d+)/);
+  let n = m ? parseInt(m[1],10) : 1;
+  if(isNaN(n)) n=1;
+  render(n, false);
+}
+
+document.getElementById('jumpForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const v = parseInt(document.getElementById('jumpInput').value,10);
+  if(!isNaN(v)) goto(v);
+  document.getElementById('jumpInput').value='';
+  document.getElementById('jumpInput').blur();
+});
+
+slider.addEventListener('input', e=>{
+  const n = parseInt(e.target.value,10);
+  sliderLabel.textContent = toAr(n);
+  const s = surahForPage(Math.max(1,n));
+  surahNow.textContent = n===0 ? 'الغلاف' : 'سورة ' + s.name;
+});
+slider.addEventListener('change', e=>{ goto(parseInt(e.target.value,10)); });
+
+document.getElementById('arrowPrev').addEventListener('click', prev);
+document.getElementById('arrowNext').addEventListener('click', next);
+document.getElementById('tapPrev').addEventListener('click', prev);
+document.getElementById('tapNext').addEventListener('click', next);
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight') prev();
+  if(e.key==='ArrowLeft') next();
+});
+
+// swipe
+let touchStartX=null;
+const viewer = document.getElementById('viewer');
+viewer.addEventListener('touchstart', e=>{ touchStartX = e.touches[0].clientX; }, {passive:true});
+viewer.addEventListener('touchend', e=>{
+  if(touchStartX===null) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if(Math.abs(dx) > 50){ dx < 0 ? next() : prev(); }
+  touchStartX=null;
+}, {passive:true});
+
+// copy link
+document.getElementById('copyLinkBtn').addEventListener('click', ()=>{
+  const url = location.origin + location.pathname + '#page=' + current;
+  const btn = document.getElementById('copyLinkBtn');
+  const flash = ()=>{ btn.classList.add('copied'); setTimeout(()=>btn.classList.remove('copied'),1400); };
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(flash).catch(flash);
+  } else { flash(); }
+});
+
+// drawer
+const drawer = document.getElementById('drawer');
+const overlay = document.getElementById('overlay');
+function openDrawer(){ drawer.classList.add('open'); overlay.classList.add('open'); }
+function closeDrawer(){ drawer.classList.remove('open'); overlay.classList.remove('open'); }
+document.getElementById('menuBtn').addEventListener('click', openDrawer);
+overlay.addEventListener('click', closeDrawer);
+
+const tabSurah = document.getElementById('tabSurah');
+const tabJuz = document.getElementById('tabJuz');
+const surahListEl = document.getElementById('surahList');
+const juzGridEl = document.getElementById('juzGrid');
+const searchBox = document.getElementById('searchBox');
+
+function buildSurahList(filter=''){
+  const f = stripTashkeel(filter.trim());
+  surahListEl.innerHTML = '';
+  sortedSurahs.forEach(s=>{
+    if(f && !stripTashkeel(s.name).includes(f)) return;
+    const row = document.createElement('div');
+    row.className = 'surah-row';
+    row.innerHTML = `<span class="num">${toAr(s.n)}</span><span class="name">${s.name}</span><span class="pg">ص ${toAr(s.page)}</span>`;
+    row.addEventListener('click', ()=>{ goto(s.page); closeDrawer(); });
+    surahListEl.appendChild(row);
+  });
+}
+function buildJuzGrid(){
+  juzGridEl.innerHTML = '';
+  JUZ.forEach(j=>{
+    const card = document.createElement('div');
+    card.className = 'juz-card';
+    card.innerHTML = `<div class="jn">${j.name}</div><div class="jp">يبدأ من صفحة ${toAr(j.page)}</div>`;
+    card.addEventListener('click', ()=>{ goto(j.page); closeDrawer(); });
+    juzGridEl.appendChild(card);
+  });
+}
+tabSurah.addEventListener('click', ()=>{
+  tabSurah.classList.add('active'); tabJuz.classList.remove('active');
+  surahListEl.classList.remove('hidden'); juzGridEl.classList.add('hidden');
+  searchBox.classList.remove('hidden');
+});
+tabJuz.addEventListener('click', ()=>{
+  tabJuz.classList.add('active'); tabSurah.classList.remove('active');
+  juzGridEl.classList.remove('hidden'); surahListEl.classList.add('hidden');
+  searchBox.classList.add('hidden');
+});
+document.getElementById('searchInput').addEventListener('input', e=> buildSurahList(e.target.value));
+
+buildSurahList();
+buildJuzGrid();
+initFromHash();
+window.addEventListener('hashchange', initFromHash);
+</script>
+</body>
+</html>
